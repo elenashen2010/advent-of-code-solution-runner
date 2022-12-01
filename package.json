@@ -1,13 +1,18 @@
 {
   "name": "advent-of-code-2022",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Boilerplate for running code to solve the Advent of Code 2022 coding challenge.",
   "scripts": {
-    "start": "ts-node src/main.ts"
+    "start": "ts-node src/main.ts",
+    "run": "create",
+    "create": "ts-node src/create.ts"
   },
   "author": "Elena Shen",
   "license": "ISC",
   "devDependencies": {
     "ts-node": "^10.9.1"
+  },
+  "dependencies": {
+    "open": "^8.4.0"
   }
 }
