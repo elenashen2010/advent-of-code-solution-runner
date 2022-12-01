@@ -1,6 +1,6 @@
 /input/*
 /solutions/*
-!/input/sample
+!/input/sample.txt
 !/solutions/sample.ts
 
 /node_modules/

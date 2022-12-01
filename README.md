@@ -13,11 +13,10 @@ Run the command `npm start <puzzle>`, where "name" is the filename of your solut
 The wrapper assumes your scripts have the `.ts` file extension.
 
 ### Starting a new challenge
-For each challenge you will need two files, one in the `input/` directory and one in the `solutions/` directory.  
-The two files should share the same name.
+For each challenge you will need two files with matching names, a .txt in the `input/` directory and a .ts in the `solutions/` directory.
 
 For the input file, copy-paste the input given to you by the AoC website (https://adventofcode.com/2022/day/1/input).
 
 For the solution file, default export a function that takes a single string parameter and returns your result. This function is what the runner will grab and execute, printing the result to the console.
 
-You can refer to the provided `input/sample` and `solutions/sample.ts` for extra guidance.
+You can refer to the provided [input/sample.txt](input/sample.txt) and [solutions/sample.ts](solutions/sample.ts) for extra guidance.
