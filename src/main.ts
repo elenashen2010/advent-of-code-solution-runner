@@ -2,15 +2,17 @@ import { constants, existsSync, accessSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 // "npm start" arguments
-const args = process.argv.slice(2);
+const args: string[] = process.argv.slice(2);
 if (args.length === 0) {
     console.warn('Missing required [day] param. Ex: "npm start 1"');
     process.exit();
 }
+// Get the puzzle name from the first argument
+const puzzle = args.shift();
 
 // Construct input and solution file paths from args
-let inputFile = `input/${args[0]}`;
-let solutionScript = `solutions/${args[0]}.ts`;
+let inputFile = `input/${puzzle}`;
+let solutionScript = `solutions/${puzzle}.ts`;
 
 // Verify that input and solution files exist and can be accessed
 if (!existsSync(inputFile)) inputFile += '.txt';
@@ -25,8 +27,9 @@ try {
 
 // Read the input file and convert it into a multiline string
 const input = readFileSync(inputFile, { encoding: 'utf-8' });
+const lines = input.split('\n');
 
-// execute the solution function exported from the solution script
+// Execute the solution function exported from the solution script
 const solution = require(resolve(solutionScript));
-const result = solution.default(input);
+const result = solution.default(input, lines, ...args);
 console.log(result);

@@ -8,7 +8,7 @@ Then `cd` into the directory and run `npm install`
 ## Usage
 (You can run `npm start sample` to see how it works first-hand)
 ### Executing a script
-Run the command `npm start [name]`, where "name" is the filename of your solution script in the `solutions/` directory (do not include file extensions).
+Run the command `npm start <puzzle>`, where "name" is the filename of your solution script in the `solutions/` directory (do not include file extensions).
 
 The wrapper assumes your scripts have the `.ts` file extension.
 
