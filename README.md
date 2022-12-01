@@ -1,7 +1,9 @@
 This module serves as a command-line interface wrapper for executing the various solution scripts made for the Advent of Code 2022 daily challenges.
 
 ## Installation
-Just run `npm install`
+Clone the repository onto your machine with the command `git clone git@github.com:elenashen2010/advent-of-code-2022-solution-runner.git`
+
+Then `cd` into the directory and run `npm install`
 
 ## Usage
 (You can run `npm start sample` to see how it works first-hand)
