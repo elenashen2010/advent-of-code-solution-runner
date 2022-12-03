@@ -1,5 +1,6 @@
 /input/*
 /solutions/*
+!/input/test.txt
 !/input/sample.txt
 !/solutions/sample.ts
 
