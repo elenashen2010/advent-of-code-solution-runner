@@ -1,9 +1,2 @@
-/input/*
-/solutions/*
-!/input/test.txt
-!/input/sample.txt
-!/solutions/sample.ts
-
 /node_modules/
 /.idea/
-input/test.txt

@@ -1,60 +1,45 @@
 import { constants, accessSync, readFileSync } from 'fs';
+const { F_OK, R_OK } = constants;
 import { resolve } from 'path';
 import { watch } from 'chokidar';
 import yargs from 'yargs';
+import config, { setFlags } from './app-config';
 import create from './create';
-
-const { F_OK, R_OK } = constants;
 
 // Command line arguments
 const argv = yargs(process.argv.slice(2))
     .scriptName('solution-runner')
-    .usage('$0 <cmd> [args]')
-    .options({
-        'puzzle': { type: 'string', alias: 'n', global: true },
-        'input': { type: 'string', alias: 'i', global: true },
-        'script': { type: 'string', alias: 's', global: true },
-        'devmode': { type: 'boolean' },
-    })
-    // .middleware(argv => {
-    //     // // Get the puzzle name from the first argument, or use today's date if no name was provided
-    //     const day = (new Date).getDate().toString();
-    //     // Construct input and solution file paths from args
-    //     argv.input = (argv.input
-    //         || argv.puzzle
-    //         || argv.devmode && 'test'
-    //         || day);
-    //     argv.script = (argv.script
-    //         || argv.puzzle
-    //         || day);
-    // })
+    .usage('$0 [puzzle]')
     .command(
-        'new',
-        'Setup for a new puzzle',
-        argv => {},
+        ['new [puzzle]', 'create [puzzle]'],
+        'Set up a new puzzle.',
+        argv => argv,
         argv => create(argv)
     )
+    .options({
+        'devmode': { type: 'boolean', alias: 'd',
+            describe: 'Enables development mode, which automatically reruns your script whenever the script or input has changed.\n' +
+                'It also sets the TEST flag to true, which you can use in your code to only execute parts during dev mode.' },
+        'input': { type: 'string', alias: 'i',
+            describe: 'Tells the runner to use a specific file for input instead of the default path.' },
+        'script': { type: 'string', alias: 's',
+            describe: 'Tells the runner to run a specific script instead of the default path.' },
+    })
+    .positional('puzzle', { type: 'string',
+        describe: 'The name of the puzzle to run.',
+        default: (new Date).getDate().toString(),
+        defaultDescription: 'The current day of the month',
+    })
+    .middleware(argv => {
+        // Construct input and solution file paths from args if needed
+        if (argv._[0] !== 'new' && argv._[0]) argv.puzzle = argv._[0].toString();
+        if (!argv.input) argv.input = config.INPUT_DIR
+            + (argv.devmode && 'test'
+            || argv.puzzle) + '.txt';
+        if (!argv.script) argv.script = config.SOLUTION_DIR + argv.puzzle + '.ts';
+        setFlags(argv);
+    })
     .parseSync();
-const args = argv._;
-
-// // Get the puzzle name from the first argument, or use today's date if no name was provided
-const day = (new Date).getDate().toString();
-
-// Construct input and solution file paths from args
-const inputFile = 'input/'
-    + (argv.input
-    || argv.puzzle
-    || argv.devmode && 'test'
-    || day)
-    + '.txt';
-
-const solutionFile = 'solutions/'
-    + (argv.script
-    || argv.puzzle
-    || day)
-    + `.ts`;
-// const inputFile = `input/${argv.input}.txt`;
-// const solutionFile = `solutions/${argv.script}.ts`;
 
 function main(solutionFile: string, inputFile: string) {
     // Verify that input and solution files exist and can be accessed
@@ -76,11 +61,26 @@ function main(solutionFile: string, inputFile: string) {
     const result = solution.default(lines, ...args);
     console.log(result);
 }
+
+const { _: args, input: inputFile, script: solutionFile } = argv;
+if (!inputFile || !solutionFile) {
+    console.error('Could not come up with an input/solution file for the provided arguments', argv);
+    process.exit(1);
+}
+
+if (argv.devmode) {
+    console.log(`\u001b[32;1m———————— Development Mode ————————\n\x1b[0m` +
+        `\x1b[32mWatching for file changes and will automatically rerun if detected. `+
+        `Press \u001b[1mCtrl-C\x1b[0m \x1b[32mto exit.\n`);
+}
+
+console.log(`\x1b[36mRunning ${solutionFile} on ${inputFile}:\x1b[0m`);
 main(solutionFile, inputFile);
 
 if (argv.devmode) {
     watch([solutionFile, inputFile]).on('change', (path) => {
-        console.log(`\x1b[36m\n${path} has been modified, restarting:\x1b[0m`);
+        console.log(`\x1b[36m\n${path} has been modified, rerunning:\x1b[0m`);
+        delete require.cache[resolve(solutionFile)];
         main(solutionFile, inputFile);
     });
 }

@@ -1,6 +1,6 @@
-// This TEST flag is used to tell whether the script is being run with `npm run` or `npm test`.
-// It's useful if you want to add a lot of debug logs when testing against test input from test.txt vs the real thing.
-const TEST = process.env.TEST === 'true';
+// This TEST flag is used to tell whether the script is being run with the --devmode flag.
+// It's useful if you want to add a lot of debug logs when developing but don't want to flood the console when running the real thing.
+const TEST = require('../src/app-config').TEST;
 /**
  * Here is a sample function setup for execution by the runner that returns a word count of the input file.
  *
@@ -47,7 +47,7 @@ export default function solve(lines: readonly string[], ...args: readonly string
         }
     });
 
-    process.stdout.write('\nWord count: ');
+    process.stdout.write('Word count: ');
     // --- End of example ---
     return result;
 }
