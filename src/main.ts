@@ -44,11 +44,15 @@ const argv = yargs(process.argv.slice(2))
 function main(solutionFile: string, inputFile: string) {
     // Verify that input and solution files exist and can be accessed
     try {
-        accessSync(inputFile, F_OK | R_OK);
         accessSync(solutionFile, F_OK | R_OK);
+        accessSync(inputFile, F_OK | R_OK);
     } catch (e) {
-        const {message} = e as Error;
-        console.warn(message || e);
+        const { message, path } = e as Error & { syscall: string; path: string };
+        if (message.includes('no such file or directory')) {
+            console.log(`No such file or directory '${path}'. Did you mean "aoc-run \u001b[1mnew\x1b[0m ${argv.puzzle}"?`)
+        } else {
+            console.warn(message || e);
+        }
         process.exit(message ? 0 : 1);
     }
 
