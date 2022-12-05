@@ -8,12 +8,13 @@ const TEST = process.env.TEST === 'true';
  * You can also add more code outside of the default exported function if you want, such as other functions to keep your
  * code organized, but only the one with "export default" will be called directly.
  *
+ * @readonly
  * @param {string[]} lines - An array of strings representing each line of the file.
  * @param {...string} [args] - An array of additional parameters passed when running `npm start <puzzle> [arg0] [arg1...]`.
  *        Not necessary for the runner to function and can be safely ignored, but may be useful later for quick testing.
  * @return {*} - The solution to the puzzle, which the runner will print to the console. Can be any type of value.
  */
-export default function solve(lines: string[], ...args: string[]) {
+export default function solve(lines: readonly string[], ...args: readonly string[]) {
     let result = 0;
 
     // Below is a demonstration of what you can do with the provided parameters

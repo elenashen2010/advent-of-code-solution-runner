@@ -69,7 +69,7 @@ function main(solutionFile: string, inputFile: string) {
 
     // Read the input file and convert it into a multiline string
     const input = readFileSync(inputFile, {encoding: 'utf-8'});
-    const lines = input.split(/\r?\n/);
+    const lines = Object.freeze(input.split(/\r?\n/));
 
     // Execute the solution function exported from the solution script
     const solution = require(resolve(solutionFile));

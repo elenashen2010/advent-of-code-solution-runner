@@ -7,10 +7,11 @@ const TEST = process.argv.includes('--devmode');
  * You can change the names of the function or its parameters, but keep the "export default" since that's what the runner looks for.
  * You can add more code outside of this function if you want, but only this function with "export default" will be called directly.
  *
+ * @readonly
  * @param {string[]} lines - An array of strings representing each line of the file.
  * @return {*} - The solution to the puzzle, which the runner will print to the console. Can be any type of value.
  */
-export default function solve(lines: string[]) {
+export default function solve(lines: readonly string[]) {
     // vvv Your solution code here vvv
     let result = 0; // AoC puzzles usually ask you for a numeric result, but you're free to change this!
 
