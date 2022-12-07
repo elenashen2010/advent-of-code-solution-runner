@@ -19,10 +19,11 @@ export default function create(argv: any) {
 
     // Confirm that a solution script doesn't already exist and create a new one from the template
     if (existsSync(solutionFile)) {
-        console.warn(`A solution script '${solutionFile}' already exists, aborting.`);
-        process.exit();
+        console.warn(`A solution script '${solutionFile}' already exists${!argv.n ? ', aborting' : ''}.`);
+        if (!argv.n) process.exit();
+    } else {
+        copyFileSync(TEMPLATE_PATH, solutionFile, COPYFILE_EXCL);
     }
-    copyFileSync(TEMPLATE_PATH, solutionFile, COPYFILE_EXCL);
 
     // Create a new input file and open it. If one already exists just open it
     if (existsSync(inputFile)) {

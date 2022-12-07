@@ -109,6 +109,8 @@ if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automati
 console.log(`\x1b[36mRunning ${solutionFile} on ${inputFile}:\x1b[0m`);
 
 // Verify, read, and execute files
+// TODO: chokidar fires a 'change' event whenever a file is opened, causing both the initial startup execute and a watch execute.
+//   Need to figure out a clean way to resolve that, probably with a timeout would be easiest. https://github.com/paulmillr/chokidar/issues/985
 main();
 
 if (argv.watch) {

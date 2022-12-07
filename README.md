@@ -88,6 +88,9 @@ aoc-run 2
 aoc-run new better
 # To run the better.ts script:
 aoc-run better
+
+# Create a new script for today's puzzle, and automatically start it in Dev Mode
+aoc-run --new --devmode
 ```
 
 **Note:** If you use a new name to create a script, then you have to also provide it when trying to run it since the program won't know what file to look for otherwise. 
