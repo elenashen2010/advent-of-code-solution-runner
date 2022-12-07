@@ -67,8 +67,8 @@ This test input file lets you provide the program with a much smaller set of inp
 
 Since every AoC puzzle comes with an example input and result **I strongly recommend putting that example input into the test file and running your program against that first.**
 
-### The TEST flag
-Finally, there's a special variable set at the top your script called `TEST`.
+### The DEBUG flag
+Finally, there's a special variable set at the top your script called `DEBUG`.
 This value is only set to **true** when in Dev Mode, and **false** otherwise. It's useful if you want to add a lot of debug logs when testing
 but would rather not flood your console with those logs when running the real thing.
 

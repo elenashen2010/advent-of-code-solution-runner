@@ -1,12 +1,12 @@
-import { constants, accessSync, readFileSync } from 'fs';
-const { F_OK, R_OK } = constants;
-import { resolve } from 'path';
-import { watch } from 'chokidar';
 import yargs from 'yargs';
-import config, { setFlags } from './app-config';
+import { watch } from 'chokidar';
+import config, { setConfigFlags } from './config/app-config';
+import { calcStandardDeviation } from './utils/standard-deviation';
+import { ms } from './utils/format';
+import { execute, loadSolution, readLines, verifyAccess } from './file-loader';
 import create from './create';
 
-// Command line arguments
+// Parse command line arguments
 const argv = yargs(process.argv.slice(2))
     .scriptName('solution-runner')
     .usage('$0 [puzzle]')
@@ -14,77 +14,106 @@ const argv = yargs(process.argv.slice(2))
         ['new [puzzle]', 'create [puzzle]'],
         'Set up a new puzzle.',
         argv => argv,
-        argv => create(argv)
+        argv => create(argv),
     )
     .options({
-        'devmode': { type: 'boolean', alias: 'd',
-            describe: 'Enables development mode, which automatically reruns your script whenever the script or input has changed.\n' +
-                'It also sets the TEST flag to true, which you can use in your code to only execute parts during dev mode.' },
+        'devmode': { type: 'boolean', alias: 'D',
+            describe: 'Enables Development Mode, which automatically reruns your script whenever the script or input has changed.\n' +
+                'It also sets the DEBUG flag to true, which you can use in your code to only execute parts during dev mode.\n' +
+                'This is equivalent to setting the --test, --watch, and --debug options.' },
+        'n': { type: 'boolean', alias: 'new',
+            describe: 'Create new files like the "new" command, but also immediately runs script execution.\n' +
+                'Combine with --devmode to create new files and start watching for file changes at the same time.' },
         'input': { type: 'string', alias: 'i',
-            describe: 'Tells the runner to use a specific file for input instead of the default path.' },
+            describe: 'Directs the program to use a specific file for input instead of the default path.' },
         'script': { type: 'string', alias: 's',
-            describe: 'Tells the runner to run a specific script instead of the default path.' },
+            describe: 'Directs the program to run a specific script instead of the default path.' },
+        'test': { type: 'boolean', alias: 't',
+            describe: 'Shorthand for --input=input/test.txt' },
+        'watch': { type: 'boolean', alias: 'w',
+            describe: 'Watch for file changes and rerun when one is detected.' },
+        'debug': { type: 'boolean', alias: 'd',
+            describe: 'Sets the DEBUG flag to true, which can be used in your code to conditionally execute segments only with this option enabled.' },
+        'time': { type: 'boolean', alias: 'T',
+            describe: 'Also display the amount of time the script takes to execute.' },
+        'benchmark': { type: 'number',
+            describe: 'Runs the script N times and displays the average performance.' },
     })
     .positional('puzzle', { type: 'string',
         describe: 'The name of the puzzle to run.',
         default: (new Date).getDate().toString(),
-        defaultDescription: 'The current day of the month',
+        defaultDescription: 'Current day of the month',
     })
     .middleware(argv => {
         // Construct input and solution file paths from args if needed
         if (argv._[0] !== 'new' && argv._[0]) argv.puzzle = argv._[0].toString();
+        if (argv.devmode) {
+            argv.test = true;
+            argv.watch = true;
+            argv.debug = true;
+        }
+        if (!argv.benchmark && argv.hasOwnProperty('benchmark')) argv.benchmark = 100;
+        if (argv.benchmark) argv.time = false;
+
+        if (argv.n && argv.test) {
+            if (!argv.input) argv.input = config.INPUT_DIR + argv.puzzle + '.txt';
+            argv.testInputFile = config.INPUT_DIR + 'test.txt';
+        }
+
         if (!argv.input) argv.input = config.INPUT_DIR
-            + (argv.devmode && 'test'
+            + (argv.test && 'test'
             || argv.puzzle) + '.txt';
+        // if (!argv.input) argv.input = config.INPUT_DIR + argv.puzzle + '.txt';
         if (!argv.script) argv.script = config.SOLUTION_DIR + argv.puzzle + '.ts';
-        setFlags(argv);
+        setConfigFlags(argv);
     })
     .parseSync();
 
-function main(solutionFile: string, inputFile: string) {
+const { _: args, input: inputFile, script: solutionFile, n } = argv as typeof argv & { input: string, script: string };
+
+function main(watchTrigger?: string) {
     // Verify that input and solution files exist and can be accessed
-    try {
-        accessSync(solutionFile, F_OK | R_OK);
-        accessSync(inputFile, F_OK | R_OK);
-    } catch (e) {
-        const { message, path } = e as Error & { syscall: string; path: string };
-        if (message.includes('no such file or directory')) {
-            console.log(`No such file or directory '${path}'. Did you mean "aoc-run \u001b[1mnew\x1b[0m ${argv.puzzle}"?`)
-        } else {
-            console.warn(message || e);
-        }
-        process.exit(message ? 0 : 1);
-    }
+    verifyAccess(solutionFile, inputFile, argv.puzzle, watchTrigger);
+
+    // Load the solution function exported from the solution script
+    const solution = loadSolution(solutionFile, watchTrigger === solutionFile);
 
     // Read the input file and convert it into a multiline string
-    const input = readFileSync(inputFile, {encoding: 'utf-8'});
-    const lines = Object.freeze(input.split(/\r?\n/));
+    const lines = readLines(inputFile, watchTrigger === inputFile);
 
-    // Execute the solution function exported from the solution script
-    const solution = require(resolve(solutionFile));
-    const result = solution.default(lines, ...args);
-    console.log(result);
+    // Execute!
+    const [result, time] = execute(solution, lines, ...args);
+
+    // And display the results
+    console.log(result !== undefined ? result : 'No result returned');
+    if (argv.time) console.log('Execution time:', ms.format(time));
+
+    // If --benchmark was set, repeat the execution N times and display the performance results
+    if (argv.benchmark) {
+        const perf: number[] = [ time ];
+        while (perf.length < argv.benchmark) {
+            const [, time] = execute(solution, lines);
+            perf.push(time);
+        }
+        const [avg, stdDev] = calcStandardDeviation(perf);
+        console.log('Average execution time:', ms.format(avg),
+                  '\nStandard deviation:    ', ms.format(stdDev));
+    }
 }
 
-const { _: args, input: inputFile, script: solutionFile } = argv;
-if (!inputFile || !solutionFile) {
-    console.error('Could not come up with an input/solution file for the provided arguments', argv);
-    process.exit(1);
-}
+if (n) create(argv);
 
-if (argv.devmode) {
-    console.log(`\u001b[32;1m———————— Development Mode ————————\n\x1b[0m` +
-        `\x1b[32mWatching for file changes and will automatically rerun if detected. `+
-        `Press \u001b[1mCtrl-C\x1b[0m \x1b[32mto exit.\n`);
-}
-
+// Print output header
+if (argv.devmode) console.log(`\u001b[32;1m———————— Development Mode ————————\x1b[0m`);
+if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automatically rerun if detected. Press \u001b[1mCtrl-C\x1b[0m \x1b[32mto exit.\n`);
 console.log(`\x1b[36mRunning ${solutionFile} on ${inputFile}:\x1b[0m`);
-main(solutionFile, inputFile);
 
-if (argv.devmode) {
+// Verify, read, and execute files
+main();
+
+if (argv.watch) {
     watch([solutionFile, inputFile]).on('change', (path) => {
         console.log(`\x1b[36m\n${path} has been modified, rerunning:\x1b[0m`);
-        delete require.cache[resolve(solutionFile)];
-        main(solutionFile, inputFile);
+        main(path);
     });
 }

@@ -1,6 +1,6 @@
 import { constants, existsSync, accessSync, copyFileSync, writeFileSync } from 'fs';
 const { F_OK, R_OK, W_OK, COPYFILE_EXCL } = constants;
-import config from './app-config';
+import config from './config/app-config';
 import { resolve } from 'path';
 const { TEMPLATE_PATH, INPUT_DIR, SOLUTION_DIR } = config;
 
@@ -26,9 +26,8 @@ export default function create(argv: any) {
 
     // Create a new input file and open it. If one already exists just open it
     if (existsSync(inputFile)) {
-        console.warn(`An input file '${inputFile}' already exists. Opening`);
+        console.warn(`\x1b[36mAn input file '${inputFile}' already exists. Opening...\x1b[0m`);
     } else {
-        // console.log(puzzle, !!puzzle.match(/[12]?\d|3[01]/));
         let puzzleUrl = 'https://adventofcode.com/';
         if (puzzle.match(/[12]?\d|3[01]/)) {
             puzzleUrl = `https://adventofcode.com/2022/day/${puzzle}/input`;
@@ -42,5 +41,6 @@ export default function create(argv: any) {
     });
 
     console.log('\x1b[36mNew solution script created at:\x1b[0m\n', resolve(solutionFile));
-    process.exit(0);
+
+    if (!argv.n) process.exit(0);
 }
