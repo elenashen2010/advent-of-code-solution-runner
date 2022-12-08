@@ -26,15 +26,19 @@ export default function create(argv: any) {
     }
 
     // Create a new input file and open it. If one already exists just open it
-    if (existsSync(inputFile)) {
-        console.warn(`\x1b[36mAn input file '${inputFile}' already exists. Opening...\x1b[0m`);
+    const newInputFile = argv.actualInputFile || argv.inputFile;
+    if (existsSync(newInputFile)) {
+        console.warn(`\x1b[36mAn input file '${newInputFile}' already exists. Opening...\x1b[0m`);
     } else {
         let puzzleUrl = 'https://adventofcode.com/';
         if (puzzle.match(/[12]?\d|3[01]/)) {
             puzzleUrl = `https://adventofcode.com/2022/day/${puzzle}/input`;
         }
-        writeFileSync(inputFile, `Paste the input from Advent of Code here\n${puzzleUrl}`);
-        console.log(`\x1b[36mNew input file created at:\n\x1b[0m`, resolve(inputFile));
+        writeFileSync(newInputFile, `Hi! I'm the text file where your solution script will get it's input from.\n` +
+            `Replace these lines with the input Advent of Code gives you for this puzzle at \n${puzzleUrl}\n\n` +
+            `A file has also been made for you to start coding your solution in, open it in your preferred code editor to get started.\n` +
+            `You can find it at ${resolve(solutionFile)}`);
+        console.log(`\x1b[36mNew input file created at:\n\x1b[0m`, resolve(newInputFile));
     }
     const open = require('open');
     open(inputFile).catch((e: any) => {

@@ -55,9 +55,9 @@ const argv = yargs(process.argv.slice(2))
         if (!argv.benchmark && argv.hasOwnProperty('benchmark')) argv.benchmark = 100;
         if (argv.benchmark) argv.time = false;
 
-        if (argv.n && argv.test) {
-            if (!argv.input) argv.input = config.INPUT_DIR + argv.puzzle + '.txt';
-            argv.testInputFile = config.INPUT_DIR + 'test.txt';
+        if (argv.test) {
+            argv.actualInputFile = config.INPUT_DIR + argv.puzzle + '.txt';
+            if (argv.n) argv.input = config.INPUT_DIR + 'test.txt';
         }
 
         if (!argv.input) argv.input = config.INPUT_DIR
@@ -68,10 +68,12 @@ const argv = yargs(process.argv.slice(2))
         setConfigFlags(argv);
     })
     .parseSync();
+type Args = typeof argv & { input: string, script: string };
 
-const { _: args, input: inputFile, script: solutionFile, n } = argv as typeof argv & { input: string, script: string };
+const { _: args, input: inputFile, script: solutionFile, n } = argv as Args;
 
-function main(watchTrigger?: string) {
+function main(argv: any, watchTrigger?: string) {
+    const { _: args, input: inputFile, script: solutionFile } = argv as Args;
     // Verify that input and solution files exist and can be accessed
     verifyAccess(solutionFile, inputFile, argv.puzzle, watchTrigger);
 
@@ -101,7 +103,13 @@ function main(watchTrigger?: string) {
     }
 }
 
-if (n) create(argv);
+let openDebouncing = false;
+if (n) {
+    create(argv);
+    // chokidar fires a 'change' event whenever a file is opened, causing both the initial startup execute and a watch execute. https://github.com/paulmillr/chokidar/issues/985
+    openDebouncing = true;
+    setTimeout(() => openDebouncing = false, 500);
+}
 
 // Print output header
 if (argv.devmode) console.log(`\u001b[32;1m———————— Development Mode ————————\x1b[0m`);
@@ -109,13 +117,28 @@ if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automati
 console.log(`\x1b[36mRunning ${solutionFile} on ${inputFile}:\x1b[0m`);
 
 // Verify, read, and execute files
-// TODO: chokidar fires a 'change' event whenever a file is opened, causing both the initial startup execute and a watch execute.
-//   Need to figure out a clean way to resolve that, probably with a timeout would be easiest. https://github.com/paulmillr/chokidar/issues/985
-main();
+main(argv);
 
 if (argv.watch) {
-    watch([solutionFile, inputFile]).on('change', (path) => {
-        console.log(`\x1b[36m\n${path} has been modified, rerunning:\x1b[0m`);
-        main(path);
+    watch([solutionFile, inputFile]).on('change', (path, stats) => {
+        if (openDebouncing) return;
+        console.log(`\x1b[36m\n${path} has been modified. Rerunning:\x1b[0m`);
+        main(argv, path);
     });
+
+    process.stdin.on('data', data => {
+        const cin = data.toString().trim().toLowerCase();
+        if (argv.actualInputFile && cin === 'real') {
+            argv.inputFile = argv.actualInputFile;
+
+            console.log(`\x1b[36m\nInput file switched to ${argv.inputFile}. Rerunning:\x1b[0m`);
+            main(argv);
+        } else if (cin === 'test') {
+            argv.actualInputFile ||= argv.inputFile;
+            argv.inputFile = config.INPUT_DIR + 'test.txt';
+
+            console.log(`\x1b[36m\nInput file switched to ${argv.inputFile}. Rerunning:\x1b[0m`);
+            main(argv);
+        }
+    })
 }
