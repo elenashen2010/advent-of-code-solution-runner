@@ -5,7 +5,6 @@ const CONFIG = {
     DEBUG: process.env.DEBUG || false,
 };
 export function setConfigFlags(argv: any) {
-    // console.log(argv);
-    if (argv.debug) CONFIG.DEBUG = true;
+    CONFIG.DEBUG = !!argv.debug;
 }
 export default CONFIG;

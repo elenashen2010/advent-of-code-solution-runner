@@ -5,10 +5,13 @@ import { calcStandardDeviation } from './utils/standard-deviation';
 import { ms } from './utils/format';
 import { execute, loadSolution, readLines, verifyAccess } from './file-loader';
 import create from './create';
+import * as readline from 'readline';
+
+type Args = typeof _argv & { input: string, script: string, actualInput: string };
 
 // Parse command line arguments
-const argv = yargs(process.argv.slice(2))
-    .scriptName('solution-runner')
+const yargv = yargs(process.argv.slice(2))
+    .scriptName('aoc-run')
     .usage('$0 [puzzle]')
     .command(
         ['new [puzzle]', 'create [puzzle]'],
@@ -16,6 +19,12 @@ const argv = yargs(process.argv.slice(2))
         argv => argv,
         argv => create(argv),
     )
+    .positional('puzzle', {
+        type: 'string', alias: 'p',
+        describe: 'The name of the puzzle to run.',
+        // 'default' is set in middleware
+        defaultDescription: 'Current day of the month',
+    })
     .options({
         'devmode': { type: 'boolean', alias: 'D',
             describe: 'Enables Development Mode, which automatically reruns your script whenever the script or input has changed.\n' +
@@ -38,26 +47,32 @@ const argv = yargs(process.argv.slice(2))
             describe: 'Also display the amount of time the script takes to execute.' },
         'benchmark': { type: 'number',
             describe: 'Runs the script N times and displays the average performance.' },
-    })
-    .positional('puzzle', { type: 'string',
-        describe: 'The name of the puzzle to run.',
-        default: (new Date).getDate().toString(),
-        defaultDescription: 'Current day of the month',
+        'show-args': { type: 'boolean', hidden: true,
+            describe: 'Log the argv object.' },
     })
     .middleware(argv => {
+        // Positional options don't work completely when set at the top level, so do our own handling here
+        if (argv._[0] === 'new') argv._.shift(); // Shift the "new" command out of args
+        if (!argv.puzzle && argv._.length === 0) { // Set default value
+            argv.puzzle = (new Date).getDate().toString();
+        }
+        if (!argv.puzzle && argv._[0] !== undefined) {
+            argv.puzzle = argv._.shift() as string;
+            argv.p = argv.puzzle;
+        }
+
         // Construct input and solution file paths from args if needed
-        if (argv._[0] !== 'new' && argv._[0]) argv.puzzle = argv._[0].toString();
         if (argv.devmode) {
-            argv.test = true;
-            argv.watch = true;
-            argv.debug = true;
+            argv.test ??= true;
+            argv.watch ??= true;
+            argv.debug ??= true;
         }
         if (!argv.benchmark && argv.hasOwnProperty('benchmark')) argv.benchmark = 100;
         if (argv.benchmark) argv.time = false;
 
-        if (argv.n && argv.test) {
-            if (!argv.input) argv.input = config.INPUT_DIR + argv.puzzle + '.txt';
-            argv.testInputFile = config.INPUT_DIR + 'test.txt';
+        if (argv.test) {
+            argv.actualInput = config.INPUT_DIR + argv.puzzle + '.txt';
+            if (argv.n) argv.input = config.INPUT_DIR + 'test.txt';
         }
 
         if (!argv.input) argv.input = config.INPUT_DIR
@@ -66,23 +81,25 @@ const argv = yargs(process.argv.slice(2))
         // if (!argv.input) argv.input = config.INPUT_DIR + argv.puzzle + '.txt';
         if (!argv.script) argv.script = config.SOLUTION_DIR + argv.puzzle + '.ts';
         setConfigFlags(argv);
-    })
-    .parseSync();
+    });
+const _argv = yargv.parseSync();
+const argv = _argv as Args;
 
-const { _: args, input: inputFile, script: solutionFile, n } = argv as typeof argv & { input: string, script: string };
+function main(argv: any, clearCache = false) {
+    if (argv.showArgs) console.log('argv', argv);
+    const { input: inputFile, script: solutionFile } = argv as Args;
 
-function main(watchTrigger?: string) {
     // Verify that input and solution files exist and can be accessed
-    verifyAccess(solutionFile, inputFile, argv.puzzle, watchTrigger);
+    if (!verifyAccess(solutionFile, inputFile, argv.puzzle, clearCache)) return false;
 
     // Load the solution function exported from the solution script
-    const solution = loadSolution(solutionFile, watchTrigger === solutionFile);
+    const solution = loadSolution(solutionFile);
 
     // Read the input file and convert it into a multiline string
-    const lines = readLines(inputFile, watchTrigger === inputFile);
+    const lines = readLines(inputFile, clearCache);
 
     // Execute!
-    const [result, time] = execute(solution, lines, ...args);
+    const [result, time] = execute(solution, lines, argv);
 
     // And display the results
     console.log(result !== undefined ? result : 'No result returned');
@@ -92,30 +109,74 @@ function main(watchTrigger?: string) {
     if (argv.benchmark) {
         const perf: number[] = [ time ];
         while (perf.length < argv.benchmark) {
-            const [, time] = execute(solution, lines);
+            const [, time] = execute(solution, lines, argv);
             perf.push(time);
         }
         const [avg, stdDev] = calcStandardDeviation(perf);
         console.log('Average execution time:', ms.format(avg),
                   '\nStandard deviation:    ', ms.format(stdDev));
     }
+    return true;
 }
 
-if (n) create(argv);
+const { n } = argv as Args;
+
+let openDebouncing = false;
+if (n) {
+    create(argv);
+    // chokidar fires a 'change' event whenever a file is opened, causing both the initial startup execute and a watch execute. https://github.com/paulmillr/chokidar/issues/985
+    openDebouncing = true;
+    setTimeout(() => openDebouncing = false, 500);
+}
 
 // Print output header
 if (argv.devmode) console.log(`\u001b[32;1m———————— Development Mode ————————\x1b[0m`);
 if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automatically rerun if detected. Press \u001b[1mCtrl-C\x1b[0m \x1b[32mto exit.\n`);
-console.log(`\x1b[36mRunning ${solutionFile} on ${inputFile}:\x1b[0m`);
+console.log(`\x1b[36mRunning ${argv.script} on ${argv.input}:\x1b[0m`);
 
 // Verify, read, and execute files
-// TODO: chokidar fires a 'change' event whenever a file is opened, causing both the initial startup execute and a watch execute.
-//   Need to figure out a clean way to resolve that, probably with a timeout would be easiest. https://github.com/paulmillr/chokidar/issues/985
-main();
+if (!main(argv)) process.exit();
 
 if (argv.watch) {
-    watch([solutionFile, inputFile]).on('change', (path) => {
-        console.log(`\x1b[36m\n${path} has been modified, rerunning:\x1b[0m`);
-        main(path);
+    let last = argv;
+
+    const watcher = watch([argv.script, argv.input]).on('change', (path, stats) => {
+        if (openDebouncing) return;
+        console.log(`\x1b[36m\n${path} has been modified. Rerunning:\x1b[0m`);
+        main(last, path === last.input);
     });
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+    rl.on('line', line => {
+        let clearCache = false;
+        let info = '';
+
+        let cin = line.trim();
+        if (cin === 'quit') process.exit();
+        else if (cin === '') info = `${argv['$0']} ${process.argv.slice(2).join(' ')}\n`;
+        else if (cin === 'real') cin = '-t=0 -d=0';
+        else if (cin === 'test') cin = '-t';
+
+        const cinArgs = cin ? cin.split(/ +/) : [];
+        const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs)) as Args;
+
+        info += `Running ${newArgv.script} on ${newArgv.input}:`;
+        if (newArgv.script !== last.script) {
+            info = `Solution file switched to ${newArgv.script}\n${info}`;
+            watcher.unwatch(last.script).add(newArgv.script);
+        }
+        if (newArgv.input !== last.input) {
+            info = `Input file switched to ${newArgv.input}\n${info}`;
+            clearCache = true;
+            watcher.unwatch(last.input).add(newArgv.input);
+        }
+        last = newArgv as Args;
+
+        console.log(`\x1b[36m\n${info}\x1b[0m`);
+        main(newArgv, clearCache);
+    });
+    rl.on('close', () => process.exit());
 }
