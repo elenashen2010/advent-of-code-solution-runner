@@ -3,10 +3,10 @@ import { resolve } from 'path';
 import { restoreLogging, trackLogging } from './utils/log-manager';
 const { F_OK, R_OK } = constants;
 
-export function verifyAccess(solutionFile: string, inputFile: string, puzzleDefault: string, clearCache?: 'solution'|'input'|'all') {
+export function verifyAccess(solutionFile: string, inputFile: string, puzzleDefault: string, clearCache = false) {
     try {
-        if (!clearCache || clearCache === 'solution' || clearCache === 'all') accessSync(solutionFile, F_OK | R_OK);
-        if (!clearCache || clearCache === 'input' || clearCache === 'all') accessSync(inputFile, F_OK | R_OK);
+        accessSync(solutionFile, F_OK | R_OK);
+        if (!clearCache) accessSync(inputFile, F_OK | R_OK);
     } catch (e) {
         const { message, path } = e as Error & { syscall: string; path: string };
         if (message.includes('no such file or directory')) {
@@ -30,16 +30,9 @@ export function readLines(inputFile: string, clearCache = false) {
     return lines;
 }
 
-let solutionCache: Function | undefined;
-export function loadSolution(solutionFile: string, clearCache = false) {
-    if (clearCache) {
-        solutionCache = undefined;
-        delete require.cache[resolve(solutionFile)];
-    }
-    if (solutionCache) return solutionCache;
-    const solution = require(resolve(solutionFile)).default;
-    solutionCache = solution;
-    return solution;
+export function loadSolution(solutionFile: string) {
+    delete require.cache[resolve(solutionFile)];
+    return require(resolve(solutionFile)).default;
 }
 
 export function execute(solutionCallback: Function, lines: readonly string[], argv: any): readonly [any, number] {

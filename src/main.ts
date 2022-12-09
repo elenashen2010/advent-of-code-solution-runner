@@ -51,7 +51,6 @@ const yargv = yargs(process.argv.slice(2))
             describe: 'Log the argv object.' },
     })
     .middleware(argv => {
-        console.log('middleware', argv, '\n');
         // Positional options don't work completely when set at the top level, so do our own handling here
         if (argv._[0] === 'new') argv._.shift(); // Shift the "new" command out of args
         if (!argv.puzzle && argv._.length === 0) { // Set default value
@@ -86,18 +85,18 @@ const yargv = yargs(process.argv.slice(2))
 const _argv = yargv.parseSync();
 const argv = _argv as Args;
 
-function main(argv: any, clearCache?: 'solution'|'input'|'all') {
-    if (argv['show-args']) console.log('argv', argv);
+function main(argv: any, clearCache = false) {
+    if (argv.showArgs) console.log('argv', argv);
     const { input: inputFile, script: solutionFile } = argv as Args;
 
     // Verify that input and solution files exist and can be accessed
     if (!verifyAccess(solutionFile, inputFile, argv.puzzle, clearCache)) return false;
 
     // Load the solution function exported from the solution script
-    const solution = loadSolution(solutionFile, clearCache === 'solution' || clearCache === 'all');
+    const solution = loadSolution(solutionFile);
 
     // Read the input file and convert it into a multiline string
-    const lines = readLines(inputFile, clearCache === 'input' || clearCache === 'all');
+    const lines = readLines(inputFile, clearCache);
 
     // Execute!
     const [result, time] = execute(solution, lines, argv);
@@ -142,32 +141,34 @@ if (argv.watch) {
     watch([solutionFile, inputFile]).on('change', (path, stats) => {
         if (openDebouncing) return;
         console.log(`\x1b[36m\n${path} has been modified. Rerunning:\x1b[0m`);
-        main(argv, path === solutionFile ? 'solution' : 'input');
+        main(argv, path === inputFile);
     });
 
+    let last = argv;
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
     });
     rl.on('line', line => {
+        let info = 'Rerunning:';
+        let clearCache = false;
+
         let cin = line.trim();
-        if (argv.actualInput && cin === '/real') {
-            argv.input = argv.actualInput;
+        if (cin === 'quit') process.exit();
+        else if (cin === 'real') cin = '-t=0 -d=0';
+        else if (cin === 'test') cin = '-t';
 
-            console.log(`\x1b[36m\nInput file switched to ${argv.input}. Rerunning:\x1b[0m`);
-            main(argv, 'input');
-        } else if (cin === '/test') {
-            argv.actualInput ||= argv.input;
-            argv.input = config.INPUT_DIR + 'test.txt';
+        const cinArgs = cin ? cin.split(/ +/) : [];
+        const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs));
 
-            console.log(`\x1b[36m\nInput file switched to ${argv.input}. Rerunning:\x1b[0m`);
-            main(argv, 'input');
-        } else {
-            console.log(`\x1b[36m\nRerunning:\x1b[0m`, process.argv.slice(2));
-            const cinArgs = cin ? cin.split(/ +/) : [];
-            const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs));
-            main(newArgv, 'all');
+        if (last.input !== newArgv.input) {
+            info = `Input file switched to ${newArgv.input}. ${info}`;
+            clearCache = true;
         }
+        last = newArgv as Args;
+
+        console.log(`\x1b[36m\n${info}\x1b[0m`);
+        main(newArgv, clearCache);
     });
     rl.on('close', () => process.exit());
 }

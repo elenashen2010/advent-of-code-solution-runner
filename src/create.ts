@@ -5,7 +5,7 @@ import { resolve } from 'path';
 const { TEMPLATE_PATH, INPUT_DIR, SOLUTION_DIR } = config;
 
 export default function create(argv: any) {
-    if (argv['show-args']) console.log(argv);
+    if (argv.showArgs) console.log(argv);
     const { input: inputFile, script: solutionFile, puzzle } = argv;
     // Verify that template files and destination directories exist and can be accessed
     try {
