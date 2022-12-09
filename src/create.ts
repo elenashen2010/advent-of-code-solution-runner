@@ -33,7 +33,7 @@ export default function create(argv: any) {
         console.warn(`\x1b[36mAn input file '${newInputFile}' already exists. Opening...\x1b[0m`);
     } else {
         let puzzleUrl = 'https://adventofcode.com/';
-        if (puzzle.match(/[12]?\d|3[01]/)) {
+        if (puzzle.toString().match(/[12]?\d|3[01]/)) {
             puzzleUrl = `https://adventofcode.com/2022/day/${puzzle}/input`;
         }
         writeFileSync(newInputFile, `Hi! I'm the text file where your solution script will get it's input from.\n` +
