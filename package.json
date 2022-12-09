@@ -1,6 +1,6 @@
 {
   "name": "advent-of-code-2022",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Boilerplate for running code to solve the Advent of Code 2022 coding challenge.",
   "scripts": {
     "start": "ts-node src/main.ts",
@@ -23,6 +23,7 @@
     "@types/yargs": "^17.0.15",
     "chokidar": "^3.5.3",
     "cross-env": "^7.0.3",
+    "dotenv": "^16.0.3",
     "open": "^8.4.0",
     "yargs": "^17.6.2"
   }
