@@ -11,7 +11,7 @@ type Args = typeof _argv & { input: string, script: string, actualInput: string 
 
 // Parse command line arguments
 const yargv = yargs(process.argv.slice(2))
-    .scriptName('solution-runner')
+    .scriptName('aoc-run')
     .usage('$0 [puzzle]')
     .command(
         ['new [puzzle]', 'create [puzzle]'],
@@ -119,7 +119,7 @@ function main(argv: any, clearCache = false) {
     return true;
 }
 
-const { input: inputFile, script: solutionFile, n } = argv as Args;
+const { n } = argv as Args;
 
 let openDebouncing = false;
 if (n) {
@@ -132,38 +132,46 @@ if (n) {
 // Print output header
 if (argv.devmode) console.log(`\u001b[32;1m———————— Development Mode ————————\x1b[0m`);
 if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automatically rerun if detected. Press \u001b[1mCtrl-C\x1b[0m \x1b[32mto exit.\n`);
-console.log(`\x1b[36mRunning ${solutionFile} on ${inputFile}:\x1b[0m`);
+console.log(`\x1b[36mRunning ${argv.script} on ${argv.input}:\x1b[0m`);
 
 // Verify, read, and execute files
 if (!main(argv)) process.exit();
 
 if (argv.watch) {
-    watch([solutionFile, inputFile]).on('change', (path, stats) => {
+    let last = argv;
+
+    const watcher = watch([argv.script, argv.input]).on('change', (path, stats) => {
         if (openDebouncing) return;
         console.log(`\x1b[36m\n${path} has been modified. Rerunning:\x1b[0m`);
-        main(argv, path === inputFile);
+        main(last, path === last.input);
     });
 
-    let last = argv;
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
     });
     rl.on('line', line => {
-        let info = 'Rerunning:';
         let clearCache = false;
+        let info = '';
 
         let cin = line.trim();
         if (cin === 'quit') process.exit();
+        else if (cin === '') info = `${argv['$0']} ${process.argv.slice(2).join(' ')}\n`;
         else if (cin === 'real') cin = '-t=0 -d=0';
         else if (cin === 'test') cin = '-t';
 
         const cinArgs = cin ? cin.split(/ +/) : [];
-        const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs));
+        const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs)) as Args;
 
-        if (last.input !== newArgv.input) {
-            info = `Input file switched to ${newArgv.input}. ${info}`;
+        info += `Running ${newArgv.script} on ${newArgv.input}:`;
+        if (newArgv.script !== last.script) {
+            info = `Solution file switched to ${newArgv.script}\n${info}`;
+            watcher.unwatch(last.script).add(newArgv.script);
+        }
+        if (newArgv.input !== last.input) {
+            info = `Input file switched to ${newArgv.input}\n${info}`;
             clearCache = true;
+            watcher.unwatch(last.input).add(newArgv.input);
         }
         last = newArgv as Args;
 
