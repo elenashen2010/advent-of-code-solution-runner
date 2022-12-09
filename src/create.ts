@@ -1,17 +1,18 @@
 import { constants, existsSync, accessSync, copyFileSync, writeFileSync } from 'fs';
 const { F_OK, R_OK, W_OK, COPYFILE_EXCL } = constants;
 import config from './config/app-config';
-import { resolve } from 'path';
-const { TEMPLATE_PATH, INPUT_DIR, SOLUTION_DIR } = config;
+import { resolve, dirname } from 'path';
 
 export default function create(argv: any) {
     if (argv.showArgs) console.log(argv);
     const { input: inputFile, script: solutionFile, puzzle } = argv;
+    const templateFile = config.TEMPLATE_PATH;
+
     // Verify that template files and destination directories exist and can be accessed
     try {
-        accessSync(TEMPLATE_PATH, F_OK | R_OK);
-        accessSync(INPUT_DIR, F_OK | R_OK | W_OK);
-        accessSync(SOLUTION_DIR, F_OK | R_OK | W_OK);
+        accessSync(templateFile, F_OK | R_OK);
+        accessSync(dirname(solutionFile), F_OK | R_OK | W_OK);
+        accessSync(dirname(inputFile), F_OK | R_OK | W_OK);
     } catch (e) {
         const {message} = e as Error;
         console.warn(message || e);
@@ -23,7 +24,7 @@ export default function create(argv: any) {
         console.warn(`\x1b[36mA solution script '${solutionFile}' already exists${!argv.n ? ', aborting' : ''}.\x1b[0m`);
         if (!argv.n) process.exit();
     } else {
-        copyFileSync(TEMPLATE_PATH, solutionFile, COPYFILE_EXCL);
+        copyFileSync(templateFile, solutionFile, COPYFILE_EXCL);
         console.log('\x1b[36mNew solution script created at:\x1b[0m\n', resolve(solutionFile));
     }
 

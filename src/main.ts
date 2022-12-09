@@ -6,6 +6,8 @@ import { ms } from './utils/format';
 import { execute, loadSolution, readLines, verifyAccess } from './file-loader';
 import create from './create';
 import * as readline from 'readline';
+import * as path from 'path';
+const { APP_ROOT, INPUT_DIR, SOLUTION_DIR } = config;
 
 type Args = typeof _argv & { input: string, script: string, actualInput: string };
 
@@ -33,9 +35,9 @@ const yargv = yargs(process.argv.slice(2))
         'n': { type: 'boolean', alias: 'new',
             describe: 'Create new files like the "new" command, but also immediately runs script execution.\n' +
                 'Combine with --devmode to create new files and start watching for file changes at the same time.' },
-        'input': { type: 'string', alias: 'i',
+        'input': { type: 'string', alias: 'i', normalize: true,
             describe: 'Directs the program to use a specific file for input instead of the default path.' },
-        'script': { type: 'string', alias: 's',
+        'script': { type: 'string', alias: 's', normalize: true,
             describe: 'Directs the program to run a specific script instead of the default path.' },
         'test': { type: 'boolean', alias: 't',
             describe: 'Shorthand for --input=input/test.txt' },
@@ -71,23 +73,20 @@ const yargv = yargs(process.argv.slice(2))
         if (argv.benchmark) argv.time = false;
 
         if (argv.test) {
-            argv.actualInput = config.INPUT_DIR + argv.puzzle + '.txt';
-            if (argv.n) argv.input = config.INPUT_DIR + 'test.txt';
+            argv.actualInput = INPUT_DIR + argv.puzzle + '.txt';
+            if (argv.n) argv.input = INPUT_DIR + 'test.txt';
         }
 
-        if (!argv.input) argv.input = config.INPUT_DIR
-            + (argv.test && 'test'
-            || argv.puzzle) + '.txt';
-        // if (!argv.input) argv.input = config.INPUT_DIR + argv.puzzle + '.txt';
-        if (!argv.script) argv.script = config.SOLUTION_DIR + argv.puzzle + '.ts';
+        if (!argv.input) argv.input = APP_ROOT + INPUT_DIR + (argv.test && 'test' || argv.puzzle) + '.txt';
+        if (!argv.script) argv.script = APP_ROOT + SOLUTION_DIR + argv.puzzle + '.ts';
         setConfigFlags(argv);
     });
 const _argv = yargv.parseSync();
 const argv = _argv as Args;
 
 function main(argv: any, clearCache = false) {
-    if (argv.showArgs) console.log('argv', argv);
-    const { input: inputFile, script: solutionFile } = argv as Args;
+    if (argv.showArgs) console.log('argv', Object.assign({}, argv));
+    const { script: solutionFile, input: inputFile } = argv as Args;
 
     // Verify that input and solution files exist and can be accessed
     if (!verifyAccess(solutionFile, inputFile, argv.puzzle, clearCache)) return false;
@@ -132,7 +131,10 @@ if (n) {
 // Print output header
 if (argv.devmode) console.log(`\u001b[32;1m———————— Development Mode ————————\x1b[0m`);
 if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automatically rerun if detected. Press \u001b[1mCtrl-C\x1b[0m \x1b[32mto exit.\n`);
-console.log(`\x1b[36mRunning ${argv.script} on ${argv.input}:\x1b[0m`);
+console.log(`\x1b[36mRunning ` +
+    `\u001b[1m./${path.relative(process.cwd(), argv.script)}\u001b[0m\u001b[36m ` +
+    `on ` +
+    `\u001b[1m./${path.relative(process.cwd(), argv.script)}\u001b[0m\u001b[36m:\x1b[0m`);
 
 // Verify, read, and execute files
 if (!main(argv)) process.exit();
@@ -140,42 +142,61 @@ if (!main(argv)) process.exit();
 if (argv.watch) {
     let last = argv;
 
+    let debounce: NodeJS.Timeout;
+    let changes = new Set<string>();
     const watcher = watch([argv.script, argv.input]).on('change', (path, stats) => {
         if (openDebouncing) return;
-        console.log(`\x1b[36m\n${path} has been modified. Rerunning:\x1b[0m`);
-        main(last, path === last.input);
+        changes.add(path);
+        debounce = setTimeout(() => {
+            clearTimeout(debounce);
+            let info = 'Rerunning:';
+            const changedFiles = Array.from(changes.values());
+            if (changedFiles.length === 1) info = `${path} has been modified. ` + info;
+            else if (changedFiles.length > 1) {
+                info = changedFiles.slice(0, -1).join(', ') +
+                    `${changedFiles.length > 2 ? ',' : ''} and ${changedFiles.slice(-1)} ` +
+                    'have been modified. ' + info;
+            }
+            console.log(`\x1b[36m\n${info}\x1b[0m`);
+
+            main(last, changes.has(last.input));
+            changes.clear();
+        }, 10);
     });
 
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
+        prompt: '',
     });
     rl.on('line', line => {
         let clearCache = false;
-        let info = '';
+        let info = '\n';
 
         let cin = line.trim();
         if (cin === 'quit') process.exit();
-        else if (cin === '') info = `${argv['$0']} ${process.argv.slice(2).join(' ')}\n`;
+        else if (cin === '') info = `\u001b[36;1mReset to initial options ${process.argv.slice(2).join(' ')}\n\u001b[0m\x1b[36m`;
         else if (cin === 'real') cin = '-t=0 -d=0';
         else if (cin === 'test') cin = '-t';
 
         const cinArgs = cin ? cin.split(/ +/) : [];
         const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs)) as Args;
 
-        info += `Running ${newArgv.script} on ${newArgv.input}:`;
+        const scriptRelativePath = `\u001b[1m./${path.relative(process.cwd(), newArgv.script)}\u001b[0m\u001b[36m`;
+        const inputRelativePath = `\u001b[1m./${path.relative(process.cwd(), newArgv.input)}\u001b[0m\u001b[36m`;
         if (newArgv.script !== last.script) {
-            info = `Solution file switched to ${newArgv.script}\n${info}`;
+            info += `Solution file switched to ${scriptRelativePath}\n`;
             watcher.unwatch(last.script).add(newArgv.script);
         }
         if (newArgv.input !== last.input) {
-            info = `Input file switched to ${newArgv.input}\n${info}`;
+            info += `Input file switched to ${inputRelativePath}\n`;
             clearCache = true;
             watcher.unwatch(last.input).add(newArgv.input);
         }
+        info += `Running ${scriptRelativePath} on ${inputRelativePath}:`;
         last = newArgv as Args;
 
-        console.log(`\x1b[36m\n${info}\x1b[0m`);
+        console.log(`\x1b[36m${info}\x1b[0m`);
         main(newArgv, clearCache);
     });
     rl.on('close', () => process.exit());
