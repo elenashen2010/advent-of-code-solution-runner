@@ -1,6 +1,6 @@
 {
   "name": "advent-of-code-2022",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Boilerplate for running code to solve the Advent of Code 2022 coding challenge.",
   "scripts": {
     "start": "ts-node src/main.ts",
