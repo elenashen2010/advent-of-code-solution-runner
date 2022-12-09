@@ -5,9 +5,12 @@ import { calcStandardDeviation } from './utils/standard-deviation';
 import { ms } from './utils/format';
 import { execute, loadSolution, readLines, verifyAccess } from './file-loader';
 import create from './create';
+import * as readline from 'readline';
+
+type Args = typeof _argv & { input: string, script: string, actualInput: string };
 
 // Parse command line arguments
-const argv = yargs(process.argv.slice(2))
+const yargv = yargs(process.argv.slice(2))
     .scriptName('solution-runner')
     .usage('$0 [puzzle]')
     .command(
@@ -16,6 +19,12 @@ const argv = yargs(process.argv.slice(2))
         argv => argv,
         argv => create(argv),
     )
+    .positional('puzzle', {
+        type: 'string', alias: 'p',
+        describe: 'The name of the puzzle to run.',
+        // 'default' is set in middleware
+        defaultDescription: 'Current day of the month',
+    })
     .options({
         'devmode': { type: 'boolean', alias: 'D',
             describe: 'Enables Development Mode, which automatically reruns your script whenever the script or input has changed.\n' +
@@ -38,25 +47,32 @@ const argv = yargs(process.argv.slice(2))
             describe: 'Also display the amount of time the script takes to execute.' },
         'benchmark': { type: 'number',
             describe: 'Runs the script N times and displays the average performance.' },
-    })
-    .positional('puzzle', { type: 'string',
-        describe: 'The name of the puzzle to run.',
-        default: (new Date).getDate().toString(),
-        defaultDescription: 'Current day of the month',
+        'show-args': { type: 'boolean', hidden: true,
+            describe: 'Log the argv object.' },
     })
     .middleware(argv => {
+        console.log('middleware', argv, '\n');
+        // Positional options don't work completely when set at the top level, so do our own handling here
+        if (argv._[0] === 'new') argv._.shift(); // Shift the "new" command out of args
+        if (!argv.puzzle && argv._.length === 0) { // Set default value
+            argv.puzzle = (new Date).getDate().toString();
+        }
+        if (!argv.puzzle && argv._[0] !== undefined) {
+            argv.puzzle = argv._.shift() as string;
+            argv.p = argv.puzzle;
+        }
+
         // Construct input and solution file paths from args if needed
-        if (argv._[0] !== 'new' && argv._[0]) argv.puzzle = argv._[0].toString();
         if (argv.devmode) {
-            argv.test = true;
-            argv.watch = true;
-            argv.debug = true;
+            argv.test ??= true;
+            argv.watch ??= true;
+            argv.debug ??= true;
         }
         if (!argv.benchmark && argv.hasOwnProperty('benchmark')) argv.benchmark = 100;
         if (argv.benchmark) argv.time = false;
 
         if (argv.test) {
-            argv.actualInputFile = config.INPUT_DIR + argv.puzzle + '.txt';
+            argv.actualInput = config.INPUT_DIR + argv.puzzle + '.txt';
             if (argv.n) argv.input = config.INPUT_DIR + 'test.txt';
         }
 
@@ -66,25 +82,25 @@ const argv = yargs(process.argv.slice(2))
         // if (!argv.input) argv.input = config.INPUT_DIR + argv.puzzle + '.txt';
         if (!argv.script) argv.script = config.SOLUTION_DIR + argv.puzzle + '.ts';
         setConfigFlags(argv);
-    })
-    .parseSync();
-type Args = typeof argv & { input: string, script: string };
+    });
+const _argv = yargv.parseSync();
+const argv = _argv as Args;
 
-const { _: args, input: inputFile, script: solutionFile, n } = argv as Args;
+function main(argv: any, clearCache?: 'solution'|'input'|'all') {
+    if (argv['show-args']) console.log('argv', argv);
+    const { input: inputFile, script: solutionFile } = argv as Args;
 
-function main(argv: any, watchTrigger?: string) {
-    const { _: args, input: inputFile, script: solutionFile } = argv as Args;
     // Verify that input and solution files exist and can be accessed
-    verifyAccess(solutionFile, inputFile, argv.puzzle, watchTrigger);
+    if (!verifyAccess(solutionFile, inputFile, argv.puzzle, clearCache)) return false;
 
     // Load the solution function exported from the solution script
-    const solution = loadSolution(solutionFile, watchTrigger === solutionFile);
+    const solution = loadSolution(solutionFile, clearCache === 'solution' || clearCache === 'all');
 
     // Read the input file and convert it into a multiline string
-    const lines = readLines(inputFile, watchTrigger === inputFile);
+    const lines = readLines(inputFile, clearCache === 'input' || clearCache === 'all');
 
     // Execute!
-    const [result, time] = execute(solution, lines, ...args);
+    const [result, time] = execute(solution, lines, argv);
 
     // And display the results
     console.log(result !== undefined ? result : 'No result returned');
@@ -94,14 +110,17 @@ function main(argv: any, watchTrigger?: string) {
     if (argv.benchmark) {
         const perf: number[] = [ time ];
         while (perf.length < argv.benchmark) {
-            const [, time] = execute(solution, lines);
+            const [, time] = execute(solution, lines, argv);
             perf.push(time);
         }
         const [avg, stdDev] = calcStandardDeviation(perf);
         console.log('Average execution time:', ms.format(avg),
                   '\nStandard deviation:    ', ms.format(stdDev));
     }
+    return true;
 }
+
+const { input: inputFile, script: solutionFile, n } = argv as Args;
 
 let openDebouncing = false;
 if (n) {
@@ -117,28 +136,38 @@ if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automati
 console.log(`\x1b[36mRunning ${solutionFile} on ${inputFile}:\x1b[0m`);
 
 // Verify, read, and execute files
-main(argv);
+if (!main(argv)) process.exit();
 
 if (argv.watch) {
     watch([solutionFile, inputFile]).on('change', (path, stats) => {
         if (openDebouncing) return;
         console.log(`\x1b[36m\n${path} has been modified. Rerunning:\x1b[0m`);
-        main(argv, path);
+        main(argv, path === solutionFile ? 'solution' : 'input');
     });
 
-    process.stdin.on('data', data => {
-        const cin = data.toString().trim().toLowerCase();
-        if (argv.actualInputFile && cin === 'real') {
-            argv.inputFile = argv.actualInputFile;
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+    rl.on('line', line => {
+        let cin = line.trim();
+        if (argv.actualInput && cin === '/real') {
+            argv.input = argv.actualInput;
 
-            console.log(`\x1b[36m\nInput file switched to ${argv.inputFile}. Rerunning:\x1b[0m`);
-            main(argv);
-        } else if (cin === 'test') {
-            argv.actualInputFile ||= argv.inputFile;
-            argv.inputFile = config.INPUT_DIR + 'test.txt';
+            console.log(`\x1b[36m\nInput file switched to ${argv.input}. Rerunning:\x1b[0m`);
+            main(argv, 'input');
+        } else if (cin === '/test') {
+            argv.actualInput ||= argv.input;
+            argv.input = config.INPUT_DIR + 'test.txt';
 
-            console.log(`\x1b[36m\nInput file switched to ${argv.inputFile}. Rerunning:\x1b[0m`);
-            main(argv);
+            console.log(`\x1b[36m\nInput file switched to ${argv.input}. Rerunning:\x1b[0m`);
+            main(argv, 'input');
+        } else {
+            console.log(`\x1b[36m\nRerunning:\x1b[0m`, process.argv.slice(2));
+            const cinArgs = cin ? cin.split(/ +/) : [];
+            const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs));
+            main(newArgv, 'all');
         }
-    })
+    });
+    rl.on('close', () => process.exit());
 }
