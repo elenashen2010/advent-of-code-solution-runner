@@ -134,7 +134,7 @@ if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automati
 console.log(`\x1b[36mRunning ` +
     `\u001b[1m./${path.relative(process.cwd(), argv.script)}\u001b[0m\u001b[36m ` +
     `on ` +
-    `\u001b[1m./${path.relative(process.cwd(), argv.script)}\u001b[0m\u001b[36m:\x1b[0m`);
+    `\u001b[1m./${path.relative(process.cwd(), argv.input)}\u001b[0m\u001b[36m:\x1b[0m`);
 
 // Verify, read, and execute files
 if (!main(argv)) process.exit();
