@@ -49,8 +49,12 @@ const yargv = yargs(process.argv.slice(2))
             describe: 'Also display the amount of time the script takes to execute.' },
         'benchmark': { type: 'number',
             describe: 'Runs the script N times and displays the average performance.' },
+        'watch-debounce': { type: 'number', default: 25,
+            describe: 'How many ms to wait for simultaneous file changes in watch mode.' },
         'show-args': { type: 'boolean', hidden: true,
             describe: 'Log the argv object.' },
+        'nocache': { type: 'boolean', hidden: true,
+            describe: 'Force clear the input cache.' },
     })
     .middleware(argv => {
         // Positional options don't work completely when set at the top level, so do our own handling here
@@ -77,8 +81,8 @@ const yargv = yargs(process.argv.slice(2))
             if (argv.n) argv.input = INPUT_DIR + 'test.txt';
         }
 
-        if (!argv.input) argv.input = APP_ROOT + INPUT_DIR + (argv.test && 'test' || argv.puzzle) + '.txt';
-        if (!argv.script) argv.script = APP_ROOT + SOLUTION_DIR + argv.puzzle + '.ts';
+        if (!argv.input) argv.input = path.join(APP_ROOT, INPUT_DIR, (argv.test && 'test' || argv.puzzle) + '.txt');
+        if (!argv.script) argv.script = path.join(APP_ROOT, SOLUTION_DIR, argv.puzzle + '.ts');
         setConfigFlags(argv);
     });
 const _argv = yargv.parseSync();
@@ -132,9 +136,9 @@ if (n) {
 if (argv.devmode) console.log(`\u001b[32;1m———————— Development Mode ————————\x1b[0m`);
 if (argv.watch) console.log(`\x1b[32mWatching for file changes and will automatically rerun if detected. Press \u001b[1mCtrl-C\x1b[0m \x1b[32mto exit.\n`);
 console.log(`\x1b[36mRunning ` +
-    `\u001b[1m./${path.relative(process.cwd(), argv.script)}\u001b[0m\u001b[36m ` +
+    `\u001b[1m.${path.sep}${path.relative(process.cwd(), argv.script)}\u001b[0m\u001b[36m ` +
     `on ` +
-    `\u001b[1m./${path.relative(process.cwd(), argv.input)}\u001b[0m\u001b[36m:\x1b[0m`);
+    `\u001b[1m.${path.sep}${path.relative(process.cwd(), argv.input)}\u001b[0m\u001b[36m:\x1b[0m`);
 
 // Verify, read, and execute files
 if (!main(argv)) process.exit();
@@ -144,14 +148,14 @@ if (argv.watch) {
 
     let debounce: NodeJS.Timeout;
     let changes = new Set<string>();
-    const watcher = watch([argv.script, argv.input]).on('change', (path, stats) => {
+    const watcher = watch([argv.script, argv.input]).on('change', (filePath) => {
         if (openDebouncing) return;
-        changes.add(path);
+        changes.add(filePath);
         debounce = setTimeout(() => {
             clearTimeout(debounce);
             let info = 'Rerunning:';
-            const changedFiles = Array.from(changes.values());
-            if (changedFiles.length === 1) info = `${path} has been modified. ` + info;
+            const changedFiles = Array.from(changes.values()).map(f => `.${path.sep}${path.relative(process.cwd(), f)}`);
+            if (changedFiles.length === 1) info = `${filePath} has been modified. ` + info;
             else if (changedFiles.length > 1) {
                 info = changedFiles.slice(0, -1).join(', ') +
                     `${changedFiles.length > 2 ? ',' : ''} and ${changedFiles.slice(-1)} ` +
@@ -159,9 +163,9 @@ if (argv.watch) {
             }
             console.log(`\x1b[36m\n${info}\x1b[0m`);
 
-            main(last, changes.has(last.input));
+            main(last, last.nocache || changes.has(last.input));
             changes.clear();
-        }, 10);
+        }, last.watchDebounce);
     });
 
     const rl = readline.createInterface({
@@ -182,8 +186,8 @@ if (argv.watch) {
         const cinArgs = cin ? cin.split(/ +/) : [];
         const newArgv = yargv.parseSync(process.argv.slice(2).concat(cinArgs)) as Args;
 
-        const scriptRelativePath = `\u001b[1m./${path.relative(process.cwd(), newArgv.script)}\u001b[0m\u001b[36m`;
-        const inputRelativePath = `\u001b[1m./${path.relative(process.cwd(), newArgv.input)}\u001b[0m\u001b[36m`;
+        const scriptRelativePath = `\u001b[1m.${path.sep}${path.relative(process.cwd(), newArgv.script)}\u001b[0m\u001b[36m`;
+        const inputRelativePath = `\u001b[1m.${path.sep}${path.relative(process.cwd(), newArgv.input)}\u001b[0m\u001b[36m`;
         if (newArgv.script !== last.script) {
             info += `Solution file switched to ${scriptRelativePath}\n`;
             watcher.unwatch(last.script).add(newArgv.script);

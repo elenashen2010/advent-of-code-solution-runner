@@ -5,7 +5,4 @@
 # *.[oa]
 # *~
 
-/input/*
-/solutions/*
-!/input/sample.txt
-!/solutions/sample.ts
+/input/test.txt

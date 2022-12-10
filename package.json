@@ -5,8 +5,7 @@
   "scripts": {
     "start": "ts-node src/main.ts",
     "start:dev": "cross-env DEBUG=true ts-node-dev --respawn --watch input src/main.ts",
-    "create": "ts-node src/create.ts",
-    "preinstall": "cp .git/info/exclude .git/info/exclude.backup; cp .git-local-exclude .git/info/exclude"
+    "create": "ts-node src/create.ts"
   },
   "bin": {
     "aoc-run": "entry.js"

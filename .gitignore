@@ -1,4 +1,10 @@
-/node_modules/
+/input/*
+/solutions/*
+!/input/test.txt
+!/input/sample.txt
+!/solutions/sample.ts
+
 .env
+/node_modules/
 
 /.idea/
