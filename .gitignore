@@ -1,10 +1,12 @@
+/puzzles/*
+!/puzzles/sample*
 /input/*
 /solutions/*
-!/input/test.txt
 !/input/sample.txt
 !/solutions/sample.ts
 
 .env
 /node_modules/
+legacy-fs-backup/
 
 /.idea/

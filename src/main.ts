@@ -7,7 +7,15 @@ import { execute, loadSolution, readLines, verifyAccess } from './file-loader';
 import create from './create';
 import * as readline from 'readline';
 import * as path from 'path';
-const { APP_ROOT, INPUT_DIR, SOLUTION_DIR } = config;
+const {
+    APP_ROOT,
+    INPUT_DIR,
+    SOLUTION_DIR,
+    PUZZLES_DIR,
+    TEST_INPUT_PATH,
+    SOLUTION_FILENAME,
+    INPUT_FILENAME
+} = config;
 
 type Args = typeof _argv & { input: string, script: string, actualInput: string };
 
@@ -51,6 +59,8 @@ const yargv = yargs(process.argv.slice(2))
             describe: 'Runs the script N times and displays the average performance.' },
         'watch-debounce': { type: 'number', default: 25,
             describe: 'How many ms to wait for simultaneous file changes in watch mode.' },
+        'legacy-fs': { type: 'boolean', hidden: true,
+            describe: 'Use the old input/ and solutions/ file structure.' },
         'show-args': { type: 'boolean', hidden: true,
             describe: 'Log the argv object.' },
         'nocache': { type: 'boolean', hidden: true,
@@ -59,11 +69,8 @@ const yargv = yargs(process.argv.slice(2))
     .middleware(argv => {
         // Positional options don't work completely when set at the top level, so do our own handling here
         if (argv._[0] === 'new') argv._.shift(); // Shift the "new" command out of args
-        if (!argv.puzzle && argv._.length === 0) { // Set default value
-            argv.puzzle = (new Date).getDate().toString();
-        }
-        if (!argv.puzzle && argv._[0] !== undefined) {
-            argv.puzzle = argv._.shift() as string;
+        if (!argv.puzzle) { // Set default value
+            argv.puzzle = argv._.length > 0 ? argv._.shift() as string : (new Date).getDate().toString();
             argv.p = argv.puzzle;
         }
 
@@ -76,13 +83,26 @@ const yargv = yargs(process.argv.slice(2))
         if (!argv.benchmark && argv.hasOwnProperty('benchmark')) argv.benchmark = 100;
         if (argv.benchmark) argv.time = false;
 
-        if (argv.test) {
-            argv.actualInput = INPUT_DIR + argv.puzzle + '.txt';
-            if (argv.n) argv.input = INPUT_DIR + 'test.txt';
-        }
+        if (!argv.legacyFs) {
+            if (argv.test) {
+                argv.actualInput = path.join(APP_ROOT, PUZZLES_DIR, argv.puzzle, argv.puzzle+INPUT_FILENAME);
+                if (argv.n) argv.input = path.join(APP_ROOT, TEST_INPUT_PATH);
+            }
 
-        if (!argv.input) argv.input = path.join(APP_ROOT, INPUT_DIR, (argv.test && 'test' || argv.puzzle) + '.txt');
-        if (!argv.script) argv.script = path.join(APP_ROOT, SOLUTION_DIR, argv.puzzle + '.ts');
+            if (!argv.script) argv.script = path.join(APP_ROOT, PUZZLES_DIR, argv.puzzle, argv.puzzle+SOLUTION_FILENAME);
+            if (!argv.input) {
+                if (argv.test) argv.input = path.join(APP_ROOT, TEST_INPUT_PATH);
+                else argv.input = path.join(APP_ROOT, PUZZLES_DIR, argv.puzzle, argv.puzzle+INPUT_FILENAME);
+            }
+        } else {
+            if (argv.test) {
+                argv.actualInput = path.join(APP_ROOT, INPUT_DIR, argv.puzzle + '.txt');
+                if (argv.n) argv.input = path.join(APP_ROOT, INPUT_DIR, 'test.txt');
+            }
+
+            if (!argv.input) argv.input = path.join(APP_ROOT, INPUT_DIR, (argv.test && 'test' || argv.puzzle) + '.txt');
+            if (!argv.script) argv.script = path.join(APP_ROOT, SOLUTION_DIR, argv.puzzle + '.ts');
+        }
         setConfigFlags(argv);
     });
 const _argv = yargv.parseSync();
