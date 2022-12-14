@@ -34,6 +34,7 @@ const yargv = yargs(process.argv.slice(2))
         describe: 'The name of the puzzle to run.',
         // 'default' is set in middleware
         defaultDescription: 'Current day of the month',
+        coerce: arg => arg.toString(),
     })
     .options({
         'devmode': { type: 'boolean', alias: 'D',
@@ -53,6 +54,8 @@ const yargv = yargs(process.argv.slice(2))
             describe: 'Watch for file changes and rerun when one is detected.' },
         'debug': { type: 'boolean', alias: 'd',
             describe: 'Sets the DEBUG flag to true, which can be used in your code to conditionally execute segments only with this option enabled.' },
+        'quiet': { type: 'boolean', alias: 'q',
+            describe: 'Suppress all console.log output while executing the script.' },
         'time': { type: 'boolean', alias: 'T',
             describe: 'Also display the amount of time the script takes to execute.' },
         'benchmark': { type: 'number',
@@ -70,7 +73,7 @@ const yargv = yargs(process.argv.slice(2))
         // Positional options don't work completely when set at the top level, so do our own handling here
         if (argv._[0] === 'new') argv._.shift(); // Shift the "new" command out of args
         if (!argv.puzzle) { // Set default value
-            argv.puzzle = argv._.length > 0 ? argv._.shift() as string : (new Date).getDate().toString();
+            argv.puzzle = argv._.length > 0 ? argv._.shift()?.toString() : (new Date).getDate().toString();
             argv.p = argv.puzzle;
         }
 

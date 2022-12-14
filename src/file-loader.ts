@@ -1,6 +1,6 @@
 import { constants, accessSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { restoreLogging, trackLogging } from './utils/log-manager';
+import { restoreLogging, suspendLogging, trackLogging } from './utils/log-manager';
 const { F_OK, R_OK } = constants;
 
 export function verifyAccess(solutionFile: string, inputFile: string, puzzleDefault: string, clearCache = false) {
@@ -38,6 +38,7 @@ export function loadSolution(solutionFile: string) {
 export function execute(solutionCallback: Function, lines: readonly string[], argv: any): readonly [any, number] {
     try {
         trackLogging();
+        if (argv.quiet) suspendLogging();
         const start = performance.now();
         const result = solutionCallback(lines, argv);
         const end = performance.now();
