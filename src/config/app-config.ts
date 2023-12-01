@@ -11,6 +11,7 @@ const CONFIG = {
     INPUT_FILENAME: process.env.INPUT_FILENAME || '-input.txt',
     TEMPLATE_PATH: process.env.TEMPLATE_PATH || `${global.appRoot}/src/template/template.ts`,
     DEBUG: process.env.DEBUG || false,
+    YEAR: process.env.YEAR || 2023,
 };
 export function setConfigFlags(argv: any) {
     CONFIG.DEBUG = !!argv.debug;

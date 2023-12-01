@@ -7,6 +7,7 @@ export default function create(argv: any) {
     if (argv.showArgs) console.log(argv);
     const { input: inputFile, script: solutionFile, puzzle } = argv;
     const templateFile = config.TEMPLATE_PATH;
+    const year = config.YEAR;
 
     // Verify that template files and destination directories exist and can be accessed
     try {
@@ -50,10 +51,10 @@ export default function create(argv: any) {
     } else {
         let puzzleUrl = 'https://adventofcode.com/';
         if (puzzle.toString().match(/[12]?\d|3[01]/)) {
-            puzzleUrl = `https://adventofcode.com/2022/day/${puzzle}/input`;
+            puzzleUrl = `https://adventofcode.com/${year}/day/${puzzle}/input`;
         }
-        writeFileSync(newInputFile, `Hi! I'm the text file where your solution script will get it's input from.\n` +
-            `Replace these lines with the input Advent of Code gives you for this puzzle at \n${puzzleUrl}\n\n` +
+        writeFileSync(newInputFile, `Hi! I'm the text file where your solution script will get its input from!\n\n` +
+            `REPLACE everything here with the input Advent of Code gives you for this puzzle at \n${puzzleUrl}\n\n` +
             `A file has also been made for you to start coding your solution in, open it in your preferred code editor to get started.\n` +
             `You can find it at ${resolve(solutionFile)}`);
         console.log(`\x1b[36mNew input file created at:\n\x1b[0m`, resolve(newInputFile));

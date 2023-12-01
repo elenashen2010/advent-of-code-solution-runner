@@ -1,4 +1,4 @@
-**AoC '22 Solution Runner** is a command-line tool for easily executing the various solution scripts you make for the Advent of Code 2022 daily challenges.
+**AoC '22 Solution Runner** is a command-line tool for easily executing the various solution scripts you make for Advent of Code daily challenges.
 
 It handles all the file parsing and such you will need for each puzzle, allowing you to get straight to coding actual solutions.
 - No need to spend time learning how to work with file systems or line readers, a common hurdle for junior coders who haven't learned those yet but are eager to participate.
@@ -13,12 +13,12 @@ It handles all the file parsing and such you will need for each puzzle, allowing
 ## Downloading
 In your terminal, navigate to where you want to keep your project and clone the repository onto your machine with the command:
 ```shell
-git clone git@github.com:elenashen2010/advent-of-code-2022-solution-runner.git
+git clone git@github.com:elenashen2010/advent-of-code-solution-runner.git
 ```
 
 **--- OR ---**
 
-If you don't have git installed you can download the source code [here](https://github.com/elenashen2010/advent-of-code-2022-solution-runner/releases) and extract it to your machine.
+If you don't have git installed you can download the source code [here](https://github.com/elenashen2010/advent-of-code-solution-runner/releases) and extract it to your machine.
 
 ##Installation
 Once it's downloaded, navigate to the project directory on your terminal and run:
