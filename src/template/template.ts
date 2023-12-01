@@ -1,6 +1,6 @@
 // This DEBUG flag is used to tell whether the script is being run with the --devmode or --debug option.
 // It's useful if you want to add a lot of debug logs when developing but don't want to flood the console when running the real thing.
-const DEBUG = require('../src/config/app-config').default.DEBUG;
+const DEBUG = require(`${global.appRoot}/src/config/app-config`).default.DEBUG;
 /**
  * The function that will be executed by the runner.
  *
