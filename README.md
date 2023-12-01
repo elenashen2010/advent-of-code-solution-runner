@@ -1,4 +1,4 @@
-**AoC '22 Solution Runner** is a command-line tool for easily executing the various solution scripts you make for Advent of Code daily challenges.
+**AoC Solution Runner** is a command-line tool for easily executing the various solution scripts you make for Advent of Code daily challenges.
 
 It handles all the file parsing and such you will need for each puzzle, allowing you to get straight to coding actual solutions.
 - No need to spend time learning how to work with file systems or line readers, a common hurdle for junior coders who haven't learned those yet but are eager to participate.
